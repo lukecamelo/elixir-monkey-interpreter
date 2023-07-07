@@ -31,6 +31,8 @@ defmodule Monkey.LexerTest do
     };
 
     let result = add(five, ten);
+    !-/*5;
+    5 < 10 > 5;
     """
 
     tokens = [
@@ -69,6 +71,18 @@ defmodule Monkey.LexerTest do
       %Token{type: :comma, literal: ","},
       %Token{type: :ident, literal: "ten"},
       %Token{type: :rparen, literal: ")"},
+      %Token{type: :semicolon, literal: ";"},
+      %Token{type: :bang, literal: "!"},
+      %Token{type: :minus, literal: "-"},
+      %Token{type: :slash, literal: "/"},
+      %Token{type: :asterisk, literal: "*"},
+      %Token{type: :int, literal: "5"},
+      %Token{type: :semicolon, literal: ";"},
+      %Token{type: :int, literal: "5"},
+      %Token{type: :lt, literal: "<"},
+      %Token{type: :int, literal: "10"},
+      %Token{type: :gt, literal: ">"},
+      %Token{type: :int, literal: "5"},
       %Token{type: :semicolon, literal: ";"},
       %Token{type: :eof, literal: "EOF"}
     ]

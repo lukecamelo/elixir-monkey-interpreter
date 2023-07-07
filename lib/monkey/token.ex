@@ -11,6 +11,12 @@ defmodule Monkey.Token do
     # operators
     assign: "=",
     plus: "+",
+    minus: "-",
+    bang: "!",
+    asterisk: "*",
+    slash: "/",
+    lt: "<",
+    gt: ">",
     # delimiters
     comma: ",",
     semicolon: ";",

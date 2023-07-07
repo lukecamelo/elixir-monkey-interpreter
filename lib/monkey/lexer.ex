@@ -5,6 +5,23 @@ defmodule Monkey.Lexer do
 
   alias Monkey.Token
 
+  @char_to_token_type %{
+    "+" => :plus,
+    "=" => :assign,
+    "(" => :lparen,
+    ")" => :rparen,
+    "{" => :lbrace,
+    "}" => :rbrace,
+    "," => :comma,
+    ";" => :semicolon,
+    "-" => :minus,
+    "!" => :bang,
+    "*" => :asterisk,
+    "/" => :slash,
+    "<" => :lt,
+    ">" => :gt
+  }
+
   @doc """
   Given a string as `input`, return list of `Token` structs representing the input as tokens.
   """
@@ -29,38 +46,45 @@ defmodule Monkey.Lexer do
 
   @spec read_char(String.t(), [String.t()], [%Token{}]) :: [String.t()]
   defp read_char(char, remaining_chars, tokens) do
-    token =
-      case char do
-        "+" ->
-          Token.new(type: :plus, literal: char)
-
-        "=" ->
-          Token.new(type: :assign, literal: char)
-
-        "(" ->
-          Token.new(type: :lparen, literal: char)
-
-        ")" ->
-          Token.new(type: :rparen, literal: char)
-
-        "{" ->
-          Token.new(type: :lbrace, literal: char)
-
-        "}" ->
-          Token.new(type: :rbrace, literal: char)
-
-        "," ->
-          Token.new(type: :comma, literal: char)
-
-        ";" ->
-          Token.new(type: :semicolon, literal: char)
-
-        _ ->
-          Token.new(type: :illegal, literal: "ILLEGAL")
-      end
+    token_type = Map.get(@char_to_token_type, char, :illegal)
+    token = Token.new(type: token_type, literal: char)
 
     tokenize(remaining_chars, [token | tokens])
   end
+
+  # defp read_char(char, remaining_chars, tokens) do
+  #   token =
+  #     case char do
+  #       "+" ->
+  #         Token.new(type: :plus, literal: char)
+
+  #       "=" ->
+  #         Token.new(type: :assign, literal: char)
+
+  #       "(" ->
+  #         Token.new(type: :lparen, literal: char)
+
+  #       ")" ->
+  #         Token.new(type: :rparen, literal: char)
+
+  #       "{" ->
+  #         Token.new(type: :lbrace, literal: char)
+
+  #       "}" ->
+  #         Token.new(type: :rbrace, literal: char)
+
+  #       "," ->
+  #         Token.new(type: :comma, literal: char)
+
+  #       ";" ->
+  #         Token.new(type: :semicolon, literal: char)
+
+  #       _ ->
+  #         Token.new(type: :illegal, literal: "ILLEGAL")
+  #     end
+
+  #   tokenize(remaining_chars, [token | tokens])
+  # end
 
   @spec read_number([String.t()], [%Token{}]) :: [String.t()]
   defp read_number(chars, tokens) do
