@@ -70,7 +70,7 @@ defmodule Monkey.LexerTest do
       %Token{type: :ident, literal: "ten"},
       %Token{type: :rparen, literal: ")"},
       %Token{type: :semicolon, literal: ";"},
-      %Token{type: :eof, literal: ""}
+      %Token{type: :eof, literal: "EOF"}
     ]
 
     assert tokens == Lexer.tokenize(input)

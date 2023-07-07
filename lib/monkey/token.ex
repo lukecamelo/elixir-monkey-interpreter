@@ -19,36 +19,25 @@ defmodule Monkey.Token do
     lbrace: "{",
     rbrace: "}",
     # keywords
-    fn: "FUNCTION",
+    function: "FUNCTION",
     let: "LET"
   }
 
   @keywords %{
-    fn: "FUNCTION",
-    let: "LET"
+    "fn" => :function,
+    "let" => :let
   }
 
-  def new([type: type, literal: literal], remaining_chars)
+  def new(type: type, literal: literal)
       when is_atom(type) and is_binary(literal) do
     if Map.has_key?(@types, type) do
-      {%__MODULE__{type: type, literal: literal}, remaining_chars}
+      %__MODULE__{type: type, literal: literal}
     else
-      {{:error, :invalid_token}, remaining_chars}
+      raise "Invalid Token type: #{inspect(type)}"
     end
   end
 
-  def lookup_ident(identifier) do
-    ident_as_key = String.to_atom(identifier)
-
-    type = Map.get(@keywords, ident_as_key, :ident)
-
-    literal =
-      if type == :ident do
-        String.upcase(identifier)
-      else
-        @keywords[ident_as_key]
-      end
-
-    [type: type, literal: literal]
+  def lookup_ident(ident) do
+    Map.get(@keywords, ident, :ident)
   end
 end
