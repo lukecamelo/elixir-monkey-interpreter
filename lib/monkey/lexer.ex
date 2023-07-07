@@ -52,40 +52,6 @@ defmodule Monkey.Lexer do
     tokenize(remaining_chars, [token | tokens])
   end
 
-  # defp read_char(char, remaining_chars, tokens) do
-  #   token =
-  #     case char do
-  #       "+" ->
-  #         Token.new(type: :plus, literal: char)
-
-  #       "=" ->
-  #         Token.new(type: :assign, literal: char)
-
-  #       "(" ->
-  #         Token.new(type: :lparen, literal: char)
-
-  #       ")" ->
-  #         Token.new(type: :rparen, literal: char)
-
-  #       "{" ->
-  #         Token.new(type: :lbrace, literal: char)
-
-  #       "}" ->
-  #         Token.new(type: :rbrace, literal: char)
-
-  #       "," ->
-  #         Token.new(type: :comma, literal: char)
-
-  #       ";" ->
-  #         Token.new(type: :semicolon, literal: char)
-
-  #       _ ->
-  #         Token.new(type: :illegal, literal: "ILLEGAL")
-  #     end
-
-  #   tokenize(remaining_chars, [token | tokens])
-  # end
-
   @spec read_number([String.t()], [%Token{}]) :: [String.t()]
   defp read_number(chars, tokens) do
     number =
