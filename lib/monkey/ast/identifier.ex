@@ -11,6 +11,11 @@ defmodule Monkey.AST.Identifier do
           value: String.t()
         }
 
+  @spec new(%Token{}, String.t()) :: t()
+  def new(%Token{} = token, value) do
+    %__MODULE__{token: token, value: value}
+  end
+
   defimpl Node, for: __MODULE__ do
     def token_literal(identifier), do: identifier.token.literal
   end

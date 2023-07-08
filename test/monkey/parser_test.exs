@@ -38,7 +38,7 @@ defmodule Monkey.ParserTest do
 
     {parser, program} = parse_input(input)
 
-    # check_parser_errors(parser)
+    check_parser_errors(parser)
 
     assert 3 == length(program.statements)
 

@@ -16,6 +16,11 @@ defmodule Monkey.AST.LetStatement do
           value: %Expression{}
         }
 
+  # @spec new(%Token{}, %Identifier{}, %Expression{}) :: t()
+  def new(%Token{} = token, %Identifier{} = ident) do
+    %__MODULE__{token: token, name: ident}
+  end
+
   defimpl Node, for: __MODULE__ do
     def token_literal(let_statement), do: let_statement.token.literal
   end

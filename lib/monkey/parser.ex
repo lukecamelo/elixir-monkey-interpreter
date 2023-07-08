@@ -85,7 +85,7 @@ defmodule Monkey.Parser do
          {:ok, p, _assign_token} <- expect_peek(p, :assign),
          p <- __loop_until_semicolon__(p),
          p <- next_token(p) do
-      identifier = %Identifier{token: ident_token, value: ident_token.literal}
+      identifier = Identifier.new(ident_token, ident_token.literal)
       # , value: %Expression{}}
       statement = %LetStatement{token: let_token, name: identifier}
 
@@ -107,7 +107,17 @@ defmodule Monkey.Parser do
 
     with p <- __loop_until_semicolon__(p),
          p <- next_token(p) do
-      statement = %ReturnStatement{token: return_token}
+      statement = ReturnStatement.new(return_token)
+
+      {p, statement}
+    else
+      {:error, err_p, _} ->
+        err_p =
+          err_p
+          |> __loop_until_semicolon__()
+          |> next_token()
+
+        {err_p, nil}
     end
   end
 
