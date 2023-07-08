@@ -2,6 +2,11 @@ defmodule Monkey.Token do
   @enforce_keys [:type, :literal]
   defstruct [:type, :literal]
 
+  @type t() :: %__MODULE__{
+          type: atom(),
+          literal: String.t()
+        }
+
   @types %{
     illegal: "ILLEGAL",
     eof: "EOF",
@@ -17,6 +22,8 @@ defmodule Monkey.Token do
     slash: "/",
     lt: "<",
     gt: ">",
+    eq: "==",
+    not_eq: "!=",
     # delimiters
     comma: ",",
     semicolon: ";",
@@ -26,12 +33,22 @@ defmodule Monkey.Token do
     rbrace: "}",
     # keywords
     function: "FUNCTION",
-    let: "LET"
+    let: "LET",
+    if: "IF",
+    else: "else",
+    return: "RETURN",
+    true: "TRUE",
+    false: "FALSE"
   }
 
   @keywords %{
     "fn" => :function,
-    "let" => :let
+    "let" => :let,
+    "if" => :if,
+    "else" => :else,
+    "return" => :return,
+    "true" => true,
+    "false" => false
   }
 
   def new(type: type, literal: literal)

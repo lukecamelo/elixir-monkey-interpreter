@@ -19,7 +19,9 @@ defmodule Monkey.Lexer do
     "*" => :asterisk,
     "/" => :slash,
     "<" => :lt,
-    ">" => :gt
+    ">" => :gt,
+    "==" => :eq,
+    "!=" => :not_eq
   }
 
   @doc """
@@ -45,6 +47,18 @@ defmodule Monkey.Lexer do
   end
 
   @spec read_char(String.t(), [String.t()], [%Token{}]) :: [String.t()]
+  defp read_char("=", ["=" | tail] = _remaining_chars, tokens) do
+    token = Token.new(type: :eq, literal: "==")
+
+    tokenize(tail, [token | tokens])
+  end
+
+  defp read_char("!", ["=" | tail] = _remaining_chars, tokens) do
+    token = Token.new(type: :not_eq, literal: "!=")
+
+    tokenize(tail, [token | tokens])
+  end
+
   defp read_char(char, remaining_chars, tokens) do
     token_type = Map.get(@char_to_token_type, char, :illegal)
     token = Token.new(type: token_type, literal: char)

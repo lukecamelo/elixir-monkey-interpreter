@@ -27,12 +27,21 @@ defmodule Monkey.LexerTest do
     let ten = 10;
 
     let add = fn(x, y) {
-    x + y;
+      x + y;
     };
 
     let result = add(five, ten);
     !-/*5;
     5 < 10 > 5;
+
+    if (5 < 10) {
+      return true;
+    } else {
+      return false;
+    }
+
+    10 == 10;
+    10 != 9;
     """
 
     tokens = [
@@ -83,6 +92,31 @@ defmodule Monkey.LexerTest do
       %Token{type: :int, literal: "10"},
       %Token{type: :gt, literal: ">"},
       %Token{type: :int, literal: "5"},
+      %Token{type: :semicolon, literal: ";"},
+      %Token{type: :if, literal: "if"},
+      %Token{type: :lparen, literal: "("},
+      %Token{type: :int, literal: "5"},
+      %Token{type: :lt, literal: "<"},
+      %Token{type: :int, literal: "10"},
+      %Token{type: :rparen, literal: ")"},
+      %Token{type: :lbrace, literal: "{"},
+      %Token{type: :return, literal: "return"},
+      %Token{type: true, literal: "true"},
+      %Token{type: :semicolon, literal: ";"},
+      %Token{type: :rbrace, literal: "}"},
+      %Token{type: :else, literal: "else"},
+      %Token{type: :lbrace, literal: "{"},
+      %Token{type: :return, literal: "return"},
+      %Token{type: false, literal: "false"},
+      %Token{type: :semicolon, literal: ";"},
+      %Token{type: :rbrace, literal: "}"},
+      %Token{type: :int, literal: "10"},
+      %Token{type: :eq, literal: "=="},
+      %Token{type: :int, literal: "10"},
+      %Token{type: :semicolon, literal: ";"},
+      %Token{type: :int, literal: "10"},
+      %Token{type: :not_eq, literal: "!="},
+      %Token{type: :int, literal: "9"},
       %Token{type: :semicolon, literal: ";"},
       %Token{type: :eof, literal: "EOF"}
     ]
