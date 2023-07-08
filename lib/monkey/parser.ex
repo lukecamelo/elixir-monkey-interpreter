@@ -1,4 +1,6 @@
 defmodule Monkey.Parser do
+  alias Monkey.AST.IntegerLiteral
+  alias Monkey.AST.ExpressionStatement
   alias Monkey.AST.ReturnStatement
   alias Monkey.AST.Program
   # alias Monkey.AST.Expression
@@ -16,6 +18,22 @@ defmodule Monkey.Parser do
           tokens: [%Token{}],
           errors: [String.t()]
         }
+
+  @precedences %{
+    lowest: 0,
+    # ==
+    equals: 1,
+    # > or <
+    less_greater: 2,
+    # +
+    sum: 3,
+    # *
+    product: 4,
+    # -X or !X
+    prefix: 5,
+    # myFunction(X)
+    call: 6
+  }
 
   @doc """
   Initializes `%Parser{}` from list of `%Token{}`.
@@ -73,7 +91,9 @@ defmodule Monkey.Parser do
 
       :return ->
         parse_return_statement(parser)
-        # _ -> {parser, nil}
+
+      _ ->
+        parse_expression_statement(parser)
     end
   end
 
@@ -81,13 +101,14 @@ defmodule Monkey.Parser do
   defp parse_let_statement(p) do
     let_token = p.cur_token
 
+    # TODO: i feel like this loop til semicolon -> next_token() business should only be written once
     with {:ok, p, ident_token} <- expect_peek(p, :ident),
          {:ok, p, _assign_token} <- expect_peek(p, :assign),
          p <- __loop_until_semicolon__(p),
          p <- next_token(p) do
       identifier = Identifier.new(ident_token, ident_token.literal)
       # , value: %Expression{}}
-      statement = %LetStatement{token: let_token, name: identifier}
+      statement = LetStatement.new(let_token, identifier)
 
       {p, statement}
     else
@@ -121,6 +142,56 @@ defmodule Monkey.Parser do
     end
   end
 
+  @spec parse_expression_statement(t()) :: {t(), %ExpressionStatement{} | nil}
+  def parse_expression_statement(p) do
+    token = p.cur_token
+
+    {_, p, expression} = parse_expression(p, @precedences.lowest)
+
+    p =
+      p
+      |> next_token()
+      |> skip_semicolon()
+
+    expression_statement = ExpressionStatement.new(token, expression)
+
+    {p, expression_statement}
+  end
+
+  def parse_expression(p, _precedence) do
+    case prefix_parse_fn(p.cur_token.type, p) do
+      {_p, nil} ->
+        # problem!
+        IO.puts("problem!")
+
+      {p, expression} ->
+        {:ok, p, expression}
+    end
+  end
+
+  defp prefix_parse_fn(:ident, p), do: parse_identifier(p)
+  defp prefix_parse_fn(:int, p), do: parse_integer_literal(p)
+
+  defp parse_identifier(p) do
+    identifier = Identifier.new(p.cur_token, p.cur_token.literal)
+    {p, identifier}
+  end
+
+  defp parse_integer_literal(p) do
+    int = Integer.parse(p.cur_token.literal)
+
+    case int do
+      :error ->
+        error = "could not parse #{p.cur_token.literal} to integer"
+        p = add_error(p, error)
+        {p, nil}
+
+      {int, _} ->
+        integer_literal = IntegerLiteral.new(p.cur_token, int)
+        {p, integer_literal}
+    end
+  end
+
   # temp until we parse expressions
   def __loop_until_semicolon__(parser) do
     case parser.cur_token do
@@ -132,6 +203,12 @@ defmodule Monkey.Parser do
         __loop_until_semicolon__(next_parser)
     end
   end
+
+  defp skip_semicolon(%__MODULE__{cur_token: %Token{type: :semicolon}} = p) do
+    next_token(p)
+  end
+
+  defp skip_semicolon(p), do: p
 
   @spec expect_peek(t(), :let | :ident | :assign) :: {:ok, t(), %Token{}} | {:error, t(), nil}
   defp expect_peek(%__MODULE__{next_token: %Token{type: type} = next} = parser, type) do
