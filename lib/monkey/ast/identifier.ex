@@ -18,5 +18,9 @@ defmodule Monkey.AST.Identifier do
 
   defimpl Node, for: __MODULE__ do
     def token_literal(identifier), do: identifier.token.literal
+
+    def to_string(identifier) do
+      identifier.value
+    end
   end
 end

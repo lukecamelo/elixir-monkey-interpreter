@@ -23,5 +23,17 @@ defmodule Monkey.AST.LetStatement do
 
   defimpl Node, for: __MODULE__ do
     def token_literal(let_statement), do: let_statement.token.literal
+
+    def to_string(let_statement) do
+      out = [
+        Node.token_literal(let_statement),
+        " ",
+        Node.to_string(let_statement.name),
+        " = "
+      ]
+
+      out = if let_statement.value, do: out ++ [Node.to_string(let_statement.value)], else: out
+      Enum.join(out)
+    end
   end
 end

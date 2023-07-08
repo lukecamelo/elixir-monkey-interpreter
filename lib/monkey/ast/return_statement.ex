@@ -19,6 +19,15 @@ defmodule Monkey.AST.ReturnStatement do
   end
 
   defimpl Node, for: __MODULE__ do
-    def token_literal(return_statement), do: return_statement.token.literal
+    def token_literal(statement), do: statement.token.literal
+
+    def to_string(statement) do
+      literal_string = Node.token_literal(statement) <> " "
+
+      return_value_string =
+        if statement.return_value, do: Node.to_string(statement.return_value), else: ""
+
+      literal_string <> return_value_string <> ";"
+    end
   end
 end
