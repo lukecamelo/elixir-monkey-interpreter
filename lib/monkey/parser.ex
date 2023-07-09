@@ -1,13 +1,15 @@
 defmodule Monkey.Parser do
-  alias Monkey.AST.IntegerLiteral
-  alias Monkey.AST.ExpressionStatement
-  alias Monkey.AST.ReturnStatement
-  alias Monkey.AST.Program
-  # alias Monkey.AST.Expression
-  alias Monkey.AST.Identifier
-  alias Monkey.AST.LetStatement
-  alias Monkey.AST.Statement
   alias Monkey.Token
+
+  alias Monkey.AST.{
+    ExpressionStatement,
+    Identifier,
+    IntegerLiteral,
+    LetStatement,
+    PrefixExpression,
+    Program,
+    ReturnStatement
+  }
 
   @enforce_keys [:cur_token, :next_token, :tokens, :errors]
   defstruct [:cur_token, :next_token, :tokens, :errors]
@@ -18,6 +20,8 @@ defmodule Monkey.Parser do
           tokens: [%Token{}],
           errors: [String.t()]
         }
+
+  @type statement :: %ExpressionStatement{} | %LetStatement{} | %ReturnStatement{}
 
   @precedences %{
     lowest: 0,
@@ -55,7 +59,7 @@ defmodule Monkey.Parser do
     %{p | cur_token: p.next_token, next_token: next_peek, tokens: rest}
   end
 
-  @spec parse_program(t(), [%Statement{}]) :: {t(), %Program{}}
+  @spec parse_program(t(), [statement]) :: {t(), %Program{}}
   def parse_program(%__MODULE__{} = parser, statements \\ []) do
     do_parse_program(parser, statements)
   end
@@ -160,9 +164,9 @@ defmodule Monkey.Parser do
 
   def parse_expression(p, _precedence) do
     case prefix_parse_fn(p.cur_token.type, p) do
-      {_p, nil} ->
-        # problem!
-        IO.puts("problem!")
+      {p, nil} ->
+        p = no_prefix_parse_error(p)
+        {:ok, p, nil}
 
       {p, expression} ->
         {:ok, p, expression}
@@ -171,6 +175,8 @@ defmodule Monkey.Parser do
 
   defp prefix_parse_fn(:ident, p), do: parse_identifier(p)
   defp prefix_parse_fn(:int, p), do: parse_integer_literal(p)
+  defp prefix_parse_fn(:bang, p), do: parse_prefix(p)
+  defp prefix_parse_fn(:minus, p), do: parse_prefix(p)
 
   defp parse_identifier(p) do
     identifier = Identifier.new(p.cur_token, p.cur_token.literal)
@@ -190,6 +196,24 @@ defmodule Monkey.Parser do
         integer_literal = IntegerLiteral.new(p.cur_token, int)
         {p, integer_literal}
     end
+  end
+
+  defp parse_prefix(p) do
+    cur_token = p.cur_token
+
+    {_, p, right} =
+      p
+      |> next_token()
+      |> parse_expression(@precedences.lowest)
+
+    prefix_expression = PrefixExpression.new(cur_token, cur_token.literal, right)
+
+    {p, prefix_expression}
+  end
+
+  defp no_prefix_parse_error(p) do
+    error = "No prefix parse function for :#{p.cur_token.type} found"
+    add_error(p, error)
   end
 
   # temp until we parse expressions

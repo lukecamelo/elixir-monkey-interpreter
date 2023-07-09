@@ -1,14 +1,14 @@
 defmodule Monkey.ParserTest do
-  alias Monkey.AST.IntegerLiteral
-
   alias Monkey.AST.{
     ExpressionStatement,
-    ReturnStatement,
+    Identifier,
+    IntegerLiteral,
     LetStatement,
-    Identifier
+    Node,
+    PrefixExpression,
+    ReturnStatement
   }
 
-  alias Monkey.AST.Node
   alias Monkey.Parser
   alias Monkey.Lexer
 
@@ -66,11 +66,22 @@ defmodule Monkey.ParserTest do
     input = "5;"
 
     statement = parse_one_expression_statement(input)
-    IO.inspect(statement)
 
     integer_literal = statement.expression
 
     test_integer_literal(integer_literal, 5, "5")
+  end
+
+  test "parses input; prefix expression" do
+    input = [{"!5;", "!", 5, "5"}, {"-15;", "-", 15, "15"}]
+
+    Enum.each(input, fn {input, operator, value, literal} ->
+      statement = parse_one_expression_statement(input)
+      prefix = statement.expression
+
+      test_prefix(prefix, operator)
+      test_integer_literal(prefix.right, value, literal)
+    end)
   end
 
   ####################
@@ -97,6 +108,11 @@ defmodule Monkey.ParserTest do
     assert %IntegerLiteral{} = integer_literal
     assert integer_literal.value == value
     assert Node.token_literal(integer_literal) == token_literal_value
+  end
+
+  def test_prefix(prefix, operator) do
+    assert %PrefixExpression{} = prefix
+    assert prefix.operator == operator
   end
 
   ####################
