@@ -4,6 +4,7 @@ defmodule Monkey.Parser do
   alias Monkey.AST.{
     ExpressionStatement,
     Identifier,
+    InfixExpression,
     IntegerLiteral,
     LetStatement,
     PrefixExpression,
@@ -23,13 +24,15 @@ defmodule Monkey.Parser do
 
   @type statement :: %ExpressionStatement{} | %LetStatement{} | %ReturnStatement{}
 
+  @type expression :: %IntegerLiteral{} | %PrefixExpression{} | %InfixExpression{} | %Identifier{}
+
   @precedences %{
     lowest: 0,
     # ==
     equals: 1,
     # > or <
     less_greater: 2,
-    # +
+    # + or -
     sum: 3,
     # *
     product: 4,
@@ -37,6 +40,17 @@ defmodule Monkey.Parser do
     prefix: 5,
     # myFunction(X)
     call: 6
+  }
+
+  @precedence_table %{
+    eq: @precedences.equals,
+    not_eq: @precedences.equals,
+    lt: @precedences.less_greater,
+    gt: @precedences.less_greater,
+    plus: @precedences.sum,
+    minus: @precedences.sum,
+    slash: @precedences.product,
+    asterisk: @precedences.product
   }
 
   @doc """
@@ -87,7 +101,7 @@ defmodule Monkey.Parser do
     do_parse_program(p, statements)
   end
 
-  @spec parse_statement(t()) :: {t(), %LetStatement{} | nil}
+  @spec parse_statement(t()) :: {t(), %LetStatement{} | %ReturnStatement{} | nil}
   defp parse_statement(parser) do
     case parser.cur_token.type do
       :let ->
@@ -162,27 +176,58 @@ defmodule Monkey.Parser do
     {p, expression_statement}
   end
 
-  def parse_expression(p, _precedence) do
+  # LSP really doesn't like this typespec for some reason
+  # @spec parse_expression(t(), non_neg_integer()) :: {:ok, t(), expression} | {:error, t(), nil}
+  defp parse_expression(p, precedence) do
     case prefix_parse_fn(p.cur_token.type, p) do
       {p, nil} ->
         p = no_prefix_parse_error(p)
-        {:ok, p, nil}
+        {:error, p, nil}
 
-      {p, expression} ->
+      {p, prefix_expression} ->
+        {p, expression} = handle_infix(p, prefix_expression, precedence)
         {:ok, p, expression}
+    end
+  end
+
+  @spec handle_infix(t(), expression, non_neg_integer()) :: {t(), expression}
+  defp handle_infix(p, left, precedence) do
+    continue = not token_is_semicolon?(p.next_token) and precedence < next_precedence(p)
+
+    with true <- continue,
+         infix_fn <- infix_parse_fn(p.next_token.type),
+         true <- infix_fn != nil do
+      p = next_token(p)
+      {p, infix_expression} = infix_fn.(p, left)
+      handle_infix(p, infix_expression, precedence)
+    else
+      _ -> {p, left}
     end
   end
 
   defp prefix_parse_fn(:ident, p), do: parse_identifier(p)
   defp prefix_parse_fn(:int, p), do: parse_integer_literal(p)
-  defp prefix_parse_fn(:bang, p), do: parse_prefix(p)
-  defp prefix_parse_fn(:minus, p), do: parse_prefix(p)
+  defp prefix_parse_fn(:bang, p), do: parse_prefix_expression(p)
+  defp prefix_parse_fn(:minus, p), do: parse_prefix_expression(p)
 
+  @spec infix_parse_fn(atom()) :: (t(), expression -> {t(), %InfixExpression{}}) | nil
+  defp infix_parse_fn(:plus), do: &parse_infix_expression(&1, &2)
+  defp infix_parse_fn(:minus), do: &parse_infix_expression(&1, &2)
+  defp infix_parse_fn(:slash), do: &parse_infix_expression(&1, &2)
+  defp infix_parse_fn(:asterisk), do: &parse_infix_expression(&1, &2)
+  defp infix_parse_fn(:eq), do: &parse_infix_expression(&1, &2)
+  defp infix_parse_fn(:not_eq), do: &parse_infix_expression(&1, &2)
+  defp infix_parse_fn(:lt), do: &parse_infix_expression(&1, &2)
+  defp infix_parse_fn(:gt), do: &parse_infix_expression(&1, &2)
+  defp infix_parse_fn(_), do: nil
+
+  @spec parse_identifier(t()) :: {t(), %Identifier{}}
   defp parse_identifier(p) do
     identifier = Identifier.new(p.cur_token, p.cur_token.literal)
     {p, identifier}
   end
 
+  @spec parse_integer_literal(t()) :: {t(), %IntegerLiteral{}} | {t(), nil}
   defp parse_integer_literal(p) do
     int = Integer.parse(p.cur_token.literal)
 
@@ -198,13 +243,14 @@ defmodule Monkey.Parser do
     end
   end
 
-  defp parse_prefix(p) do
+  @spec parse_prefix_expression(t()) :: {t(), %PrefixExpression{}}
+  defp parse_prefix_expression(p) do
     cur_token = p.cur_token
 
     {_, p, right} =
       p
       |> next_token()
-      |> parse_expression(@precedences.lowest)
+      |> parse_expression(@precedences.prefix)
 
     prefix_expression = PrefixExpression.new(cur_token, cur_token.literal, right)
 
@@ -214,6 +260,24 @@ defmodule Monkey.Parser do
   defp no_prefix_parse_error(p) do
     error = "No prefix parse function for :#{p.cur_token.type} found"
     add_error(p, error)
+  end
+
+  @spec parse_infix_expression(t(), expression) :: {t(), %InfixExpression{}} | {t(), nil}
+  defp parse_infix_expression(p, left) do
+    cur_token = p.cur_token
+    operator = cur_token.literal
+
+    precedence = cur_precedence(p)
+
+    with p <- next_token(p),
+         {:ok, p, right} <- parse_expression(p, precedence) do
+      infix_expression = InfixExpression.new(cur_token, operator, left, right)
+
+      {p, infix_expression}
+    else
+      {:error, p, nil} ->
+        {p, nil}
+    end
   end
 
   # temp until we parse expressions
@@ -228,11 +292,25 @@ defmodule Monkey.Parser do
     end
   end
 
+  @spec skip_semicolon(t()) :: t()
   defp skip_semicolon(%__MODULE__{cur_token: %Token{type: :semicolon}} = p) do
     next_token(p)
   end
 
   defp skip_semicolon(p), do: p
+
+  defp token_is_semicolon?(%Token{type: :semicolon}), do: true
+  defp token_is_semicolon?(_), do: false
+
+  @spec next_precedence(t()) :: atom()
+  defp next_precedence(%__MODULE__{next_token: next_token}) do
+    Map.get(@precedence_table, next_token.type, @precedences.lowest)
+  end
+
+  @spec cur_precedence(t()) :: atom()
+  defp cur_precedence(%__MODULE__{cur_token: cur_token}) do
+    Map.get(@precedence_table, cur_token.type, @precedences.lowest)
+  end
 
   @spec expect_peek(t(), :let | :ident | :assign) :: {:ok, t(), %Token{}} | {:error, t(), nil}
   defp expect_peek(%__MODULE__{next_token: %Token{type: type} = next} = parser, type) do

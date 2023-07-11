@@ -35,7 +35,7 @@ defmodule Monkey.Token do
     function: "FUNCTION",
     let: "LET",
     if: "IF",
-    else: "else",
+    else: "ELSE",
     return: "RETURN",
     true: "TRUE",
     false: "FALSE"

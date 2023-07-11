@@ -1,12 +1,11 @@
 defmodule Monkey.AST.Program do
   alias Monkey.AST.Node
-  alias Monkey.AST.Statement
 
   @enforce_keys [:statements]
   defstruct [:statements]
 
   @type t() :: %__MODULE__{
-          statements: [%Statement{}]
+          statements: [any()]
         }
 
   def new(statements) do
@@ -23,8 +22,10 @@ defmodule Monkey.AST.Program do
 
   def token_literal(%{statements: []}), do: ""
 
+  @spec to_string(t()) :: String.t()
   def to_string(program) do
     program.statements
+    |> IO.inspect()
     |> Enum.map(&Node.to_string/1)
     |> Enum.join()
   end

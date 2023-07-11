@@ -2,10 +2,12 @@ defmodule Monkey.ParserTest do
   alias Monkey.AST.{
     ExpressionStatement,
     Identifier,
+    InfixExpression,
     IntegerLiteral,
     LetStatement,
     Node,
     PrefixExpression,
+    Program,
     ReturnStatement
   }
 
@@ -79,8 +81,53 @@ defmodule Monkey.ParserTest do
       statement = parse_one_expression_statement(input)
       prefix = statement.expression
 
-      test_prefix(prefix, operator)
+      test_prefix_expression(prefix, operator)
       test_integer_literal(prefix.right, value, literal)
+    end)
+  end
+
+  test "parses input; infix expression" do
+    input = [
+      {"5 + 5;", 5, "+", 5},
+      {"5 - 5;", 5, "-", 5},
+      {"5 * 5;", 5, "*", 5},
+      {"5 / 5;", 5, "/", 5},
+      {"5 > 5;", 5, ">", 5},
+      {"5 < 5;", 5, "<", 5},
+      {"5 == 5;", 5, "==", 5},
+      {"5 != 5;", 5, "!=", 5}
+    ]
+
+    Enum.each(input, fn {input_string, left_value, operator, right_value} ->
+      statement = parse_one_expression_statement(input_string)
+      infix = statement.expression
+
+      test_infix_expression(infix, operator)
+      test_integer_literal(infix.left, left_value, Integer.to_string(left_value))
+      test_integer_literal(infix.right, right_value, Integer.to_string(right_value))
+    end)
+  end
+
+  test "parses input; more complicated infix expressions" do
+    input = [
+      {"-a * b", "((-a) * b)"},
+      {"!-a", "(!(-a))"},
+      {"a + b + c", "((a + b) + c)"},
+      {"a + b - c", "((a + b) - c)"},
+      {"a * b * c", "((a * b) * c)"},
+      {"a * b / c", "((a * b) / c)"},
+      {"a + b / c", "(a + (b / c))"},
+      {"a + b * c + d / e - f", "(((a + (b * c)) + (d / e)) - f)"},
+      {"5 > 4 == 3 < 4", "((5 > 4) == (3 < 4))"},
+      {"5 < 4 != 3 > 4", "((5 < 4) != (3 > 4))"},
+      {"3 + 4 * 5 == 3 * 1 + 4 * 5", "((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))"}
+    ]
+
+    Enum.each(input, fn {input_string, expected} ->
+      statement = parse_one_expression_statement(input_string)
+      infix = statement.expression
+
+      assert Node.to_string(infix) == expected
     end)
   end
 
@@ -110,9 +157,14 @@ defmodule Monkey.ParserTest do
     assert Node.token_literal(integer_literal) == token_literal_value
   end
 
-  def test_prefix(prefix, operator) do
+  def test_prefix_expression(prefix, operator) do
     assert %PrefixExpression{} = prefix
     assert prefix.operator == operator
+  end
+
+  def test_infix_expression(infix, operator) do
+    assert %InfixExpression{} = infix
+    assert infix.operator == operator
   end
 
   ####################
