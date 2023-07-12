@@ -1,7 +1,12 @@
 defmodule Monkey.Parser do
+  @moduledoc """
+  Module containing the logic for creating an Abstract Syntax Tree from a list of `Token`s.
+  """
+
   alias Monkey.Token
 
   alias Monkey.AST.{
+    Boolean,
     ExpressionStatement,
     Identifier,
     InfixExpression,
@@ -22,7 +27,7 @@ defmodule Monkey.Parser do
           errors: [String.t()]
         }
 
-  @type statement :: %ExpressionStatement{} | %LetStatement{} | %ReturnStatement{}
+  @type statement :: %ExpressionStatement{} | %LetStatement{} | %ReturnStatement{} | nil
 
   @type expression :: %IntegerLiteral{} | %PrefixExpression{} | %InfixExpression{} | %Identifier{}
 
@@ -140,7 +145,7 @@ defmodule Monkey.Parser do
     end
   end
 
-  @spec parse_return_statement(t()) :: {t(), %ReturnStatement{} | nil}
+  @spec parse_return_statement(t()) :: {t(), %ReturnStatement{}} | {t(), nil}
   defp parse_return_statement(p) do
     return_token = p.cur_token
 
@@ -150,6 +155,7 @@ defmodule Monkey.Parser do
 
       {p, statement}
     else
+      # I'm not so sure this branch is even possible. vestigial?
       {:error, err_p, _} ->
         err_p =
           err_p
@@ -176,16 +182,15 @@ defmodule Monkey.Parser do
     {p, expression_statement}
   end
 
-  # LSP really doesn't like this typespec for some reason
-  # @spec parse_expression(t(), non_neg_integer()) :: {:ok, t(), expression} | {:error, t(), nil}
+  @spec parse_expression(t(), non_neg_integer()) :: {:ok, t(), expression} | {:error, t(), nil}
   defp parse_expression(p, precedence) do
     case prefix_parse_fn(p.cur_token.type, p) do
       {p, nil} ->
         p = no_prefix_parse_error(p)
         {:error, p, nil}
 
-      {p, prefix_expression} ->
-        {p, expression} = handle_infix(p, prefix_expression, precedence)
+      {p, left_expression} ->
+        {p, expression} = handle_infix(p, left_expression, precedence)
         {:ok, p, expression}
     end
   end
@@ -205,10 +210,13 @@ defmodule Monkey.Parser do
     end
   end
 
+  @spec prefix_parse_fn(atom(), t()) :: {t(), expression} | {t(), nil}
   defp prefix_parse_fn(:ident, p), do: parse_identifier(p)
   defp prefix_parse_fn(:int, p), do: parse_integer_literal(p)
   defp prefix_parse_fn(:bang, p), do: parse_prefix_expression(p)
   defp prefix_parse_fn(:minus, p), do: parse_prefix_expression(p)
+  defp prefix_parse_fn(true, p), do: parse_boolean_expression(p)
+  defp prefix_parse_fn(false, p), do: parse_boolean_expression(p)
 
   @spec infix_parse_fn(atom()) :: (t(), expression -> {t(), %InfixExpression{}}) | nil
   defp infix_parse_fn(:plus), do: &parse_infix_expression(&1, &2)
@@ -244,9 +252,7 @@ defmodule Monkey.Parser do
   end
 
   @spec parse_prefix_expression(t()) :: {t(), %PrefixExpression{}}
-  defp parse_prefix_expression(p) do
-    cur_token = p.cur_token
-
+  defp parse_prefix_expression(%__MODULE__{cur_token: cur_token} = p) do
     {_, p, right} =
       p
       |> next_token()
@@ -257,8 +263,16 @@ defmodule Monkey.Parser do
     {p, prefix_expression}
   end
 
-  defp no_prefix_parse_error(p) do
-    error = "No prefix parse function for :#{p.cur_token.type} found"
+  @spec parse_boolean_expression(t()) :: {t(), %Boolean{}}
+  defp parse_boolean_expression(%__MODULE__{cur_token: cur_token} = p) do
+    boolean_expression = Boolean.new(cur_token, cur_token.type == true)
+
+    {p, boolean_expression}
+  end
+
+  @spec no_prefix_parse_error(t()) :: t()
+  defp no_prefix_parse_error(%__MODULE__{cur_token: %Token{type: type}} = p) do
+    error = "No prefix parse function for :#{type} found"
     add_error(p, error)
   end
 
@@ -280,8 +294,9 @@ defmodule Monkey.Parser do
     end
   end
 
-  # temp until we parse expressions
-  def __loop_until_semicolon__(parser) do
+  # temp until we parse expressions in let/return statements
+  @spec __loop_until_semicolon__(t()) :: t()
+  defp __loop_until_semicolon__(parser) do
     case parser.cur_token do
       %{type: :semicolon} ->
         parser
@@ -299,15 +314,16 @@ defmodule Monkey.Parser do
 
   defp skip_semicolon(p), do: p
 
+  @spec token_is_semicolon?(%Token{}) :: boolean()
   defp token_is_semicolon?(%Token{type: :semicolon}), do: true
   defp token_is_semicolon?(_), do: false
 
-  @spec next_precedence(t()) :: atom()
+  @spec next_precedence(t()) :: non_neg_integer()
   defp next_precedence(%__MODULE__{next_token: next_token}) do
     Map.get(@precedence_table, next_token.type, @precedences.lowest)
   end
 
-  @spec cur_precedence(t()) :: atom()
+  @spec cur_precedence(t()) :: non_neg_integer()
   defp cur_precedence(%__MODULE__{cur_token: cur_token}) do
     Map.get(@precedence_table, cur_token.type, @precedences.lowest)
   end

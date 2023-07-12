@@ -1,5 +1,6 @@
 defmodule Monkey.ParserTest do
   alias Monkey.AST.{
+    Boolean,
     ExpressionStatement,
     Identifier,
     InfixExpression,
@@ -7,7 +8,6 @@ defmodule Monkey.ParserTest do
     LetStatement,
     Node,
     PrefixExpression,
-    Program,
     ReturnStatement
   }
 
@@ -123,57 +123,77 @@ defmodule Monkey.ParserTest do
       {"3 + 4 * 5 == 3 * 1 + 4 * 5", "((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))"}
     ]
 
-    Enum.each(input, fn {input_string, expected} ->
-      statement = parse_one_expression_statement(input_string)
-      infix = statement.expression
+    test_multiple_expressions(input, &test_expression_to_string/2)
+  end
 
-      assert Node.to_string(infix) == expected
-    end)
+  test "parses input; boolean expression" do
+    input = [{"true;", true}, {"false;", false}]
+
+    test_multiple_expressions(input, &test_boolean_expression/2)
   end
 
   ####################
   # Test Helpers
   ####################
 
-  def test_let_statement(%LetStatement{} = let_statement, name) do
+  defp test_multiple_expressions(input, test_fn) do
+    Enum.each(input, fn {input_string, value} ->
+      statement = parse_one_expression_statement(input_string)
+
+      expression = statement.expression
+
+      test_fn.(expression, value)
+    end)
+  end
+
+  defp test_let_statement(%LetStatement{} = let_statement, name) do
     assert Node.token_literal(let_statement) == "let"
     assert Node.token_literal(let_statement.name) == name
     assert let_statement.name.value == name
   end
 
-  def test_return_statement(%ReturnStatement{} = return_statement) do
+  defp test_return_statement(%ReturnStatement{} = return_statement) do
     assert Node.token_literal(return_statement) == "return"
   end
 
-  def test_identifier(expression, value) do
+  defp test_identifier(expression, value) do
     assert %Identifier{} = expression
     assert expression.value == value
     assert Node.token_literal(expression) == value
   end
 
-  def test_integer_literal(integer_literal, value, token_literal_value) do
+  defp test_integer_literal(integer_literal, value, token_literal_value) do
     assert %IntegerLiteral{} = integer_literal
     assert integer_literal.value == value
     assert Node.token_literal(integer_literal) == token_literal_value
   end
 
-  def test_prefix_expression(prefix, operator) do
+  defp test_prefix_expression(prefix, operator) do
     assert %PrefixExpression{} = prefix
     assert prefix.operator == operator
   end
 
-  def test_infix_expression(infix, operator) do
+  defp test_infix_expression(infix, operator) do
     assert %InfixExpression{} = infix
     assert infix.operator == operator
+  end
+
+  defp test_boolean_expression(expression, value) do
+    assert %Boolean{} = expression
+
+    assert expression.value == value
+    assert Node.token_literal(expression) == Atom.to_string(value)
+  end
+
+  defp test_expression_to_string(expression, string_value) do
+    assert Node.to_string(expression) == string_value 
   end
 
   ####################
   # Parsing Helpers
   ####################
 
-  def check_parser_errors(%Parser{errors: []}), do: IO.puts("No errors!")
-
-  def check_parser_errors(%Parser{errors: errors} = parser) do
+  def check_parser_errors(%Parser{errors: errors}) do
     Enum.each(errors, &IO.puts("Disaster! Error: #{&1}"))
   end
 
