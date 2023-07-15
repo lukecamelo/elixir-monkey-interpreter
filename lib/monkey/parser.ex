@@ -1,6 +1,6 @@
 defmodule Monkey.Parser do
   @moduledoc """
-  Module containing the logic for creating an Abstract Syntax Tree from a list of `Token`s.
+  Module containing the logic for creating an Abstract Syntax Tree from a list of `Token`.
   """
 
   alias Monkey.Token
@@ -215,6 +215,7 @@ defmodule Monkey.Parser do
   defp prefix_parse_fn(:int, p), do: parse_integer_literal(p)
   defp prefix_parse_fn(:bang, p), do: parse_prefix_expression(p)
   defp prefix_parse_fn(:minus, p), do: parse_prefix_expression(p)
+  defp prefix_parse_fn(:lparen, p), do: parse_grouped_expression(p)
   defp prefix_parse_fn(true, p), do: parse_boolean_expression(p)
   defp prefix_parse_fn(false, p), do: parse_boolean_expression(p)
 
@@ -250,6 +251,19 @@ defmodule Monkey.Parser do
     prefix_expression = PrefixExpression.new(cur_token, cur_token.literal, right)
 
     {p, prefix_expression}
+  end
+
+  @spec parse_grouped_expression(t()) :: {t(), expression} | {t(), nil}
+  defp parse_grouped_expression(p) do
+    {_, p, expression} =
+      p
+      |> next_token()
+      |> parse_expression(@precedences.lowest)
+
+    case expect_peek(p, :rparen) do
+      {:ok, p, _} -> {p, expression}
+      {:error, p, nil} -> {p, nil}
+    end
   end
 
   @spec parse_boolean_expression(t()) :: {t(), %Boolean{}}
@@ -328,7 +342,7 @@ defmodule Monkey.Parser do
     Map.get(@precedence_table, cur_token.type, @precedences.lowest)
   end
 
-  @spec expect_peek(t(), :let | :ident | :assign) :: {:ok, t(), %Token{}} | {:error, t(), nil}
+  @spec expect_peek(t(), :let | :ident | :assign | :rparen) :: {:ok, t(), %Token{}} | {:error, t(), nil}
   defp expect_peek(%__MODULE__{next_token: %Token{type: type} = next} = parser, type) do
     p = next_token(parser)
     {:ok, p, next}
