@@ -29,7 +29,7 @@ defmodule Monkey.Parser do
 
   @type statement :: %ExpressionStatement{} | %LetStatement{} | %ReturnStatement{} | nil
 
-  @type expression :: %IntegerLiteral{} | %PrefixExpression{} | %InfixExpression{} | %Identifier{}
+  @type expression :: %IntegerLiteral{} | %PrefixExpression{} | %InfixExpression{} | %Identifier{} | %Boolean{}
 
   @precedences %{
     lowest: 0,
@@ -218,17 +218,6 @@ defmodule Monkey.Parser do
   defp prefix_parse_fn(true, p), do: parse_boolean_expression(p)
   defp prefix_parse_fn(false, p), do: parse_boolean_expression(p)
 
-  @spec infix_parse_fn(atom()) :: (t(), expression -> {t(), %InfixExpression{}}) | nil
-  defp infix_parse_fn(:plus), do: &parse_infix_expression(&1, &2)
-  defp infix_parse_fn(:minus), do: &parse_infix_expression(&1, &2)
-  defp infix_parse_fn(:slash), do: &parse_infix_expression(&1, &2)
-  defp infix_parse_fn(:asterisk), do: &parse_infix_expression(&1, &2)
-  defp infix_parse_fn(:eq), do: &parse_infix_expression(&1, &2)
-  defp infix_parse_fn(:not_eq), do: &parse_infix_expression(&1, &2)
-  defp infix_parse_fn(:lt), do: &parse_infix_expression(&1, &2)
-  defp infix_parse_fn(:gt), do: &parse_infix_expression(&1, &2)
-  defp infix_parse_fn(_), do: nil
-
   @spec parse_identifier(t()) :: {t(), %Identifier{}}
   defp parse_identifier(p) do
     identifier = Identifier.new(p.cur_token, p.cur_token.literal)
@@ -275,6 +264,17 @@ defmodule Monkey.Parser do
     error = "No prefix parse function for :#{type} found"
     add_error(p, error)
   end
+
+  @spec infix_parse_fn(atom()) :: (t(), expression -> {t(), %InfixExpression{}}) | nil
+  defp infix_parse_fn(:plus), do: &parse_infix_expression(&1, &2)
+  defp infix_parse_fn(:minus), do: &parse_infix_expression(&1, &2)
+  defp infix_parse_fn(:slash), do: &parse_infix_expression(&1, &2)
+  defp infix_parse_fn(:asterisk), do: &parse_infix_expression(&1, &2)
+  defp infix_parse_fn(:eq), do: &parse_infix_expression(&1, &2)
+  defp infix_parse_fn(:not_eq), do: &parse_infix_expression(&1, &2)
+  defp infix_parse_fn(:lt), do: &parse_infix_expression(&1, &2)
+  defp infix_parse_fn(:gt), do: &parse_infix_expression(&1, &2)
+  defp infix_parse_fn(_), do: nil
 
   @spec parse_infix_expression(t(), expression) :: {t(), %InfixExpression{}} | {t(), nil}
   defp parse_infix_expression(p, left) do

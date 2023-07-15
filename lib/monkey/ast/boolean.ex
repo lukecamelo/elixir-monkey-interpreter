@@ -14,7 +14,7 @@ defmodule Monkey.AST.Boolean do
   def new(%Token{} = token, value) do
     %__MODULE__{token: token, value: value} 
   end
-
+ 
   defimpl Node, for: __MODULE__ do
     def token_literal(bool), do: bool.token.literal 
     def to_string(bool), do: bool.token.literal 

@@ -71,18 +71,23 @@ defmodule Monkey.ParserTest do
 
     integer_literal = statement.expression
 
-    test_integer_literal(integer_literal, 5, "5")
+    test_integer_literal(integer_literal, 5)
   end
 
   test "parses input; prefix expression" do
-    input = [{"!5;", "!", 5, "5"}, {"-15;", "-", 15, "15"}]
+    input = [
+      {"!5;", "!", 5},
+      {"-15;", "-", 15},
+      {"!true;", "!", true},
+      {"!false;", "!", false}
+    ]
 
-    Enum.each(input, fn {input, operator, value, literal} ->
+    Enum.each(input, fn {input, operator, value} ->
       statement = parse_one_expression_statement(input)
       prefix = statement.expression
 
       test_prefix_expression(prefix, operator)
-      test_integer_literal(prefix.right, value, literal)
+      test_literal_expression(prefix.right, value)
     end)
   end
 
@@ -95,16 +100,17 @@ defmodule Monkey.ParserTest do
       {"5 > 5;", 5, ">", 5},
       {"5 < 5;", 5, "<", 5},
       {"5 == 5;", 5, "==", 5},
-      {"5 != 5;", 5, "!=", 5}
+      {"5 != 5;", 5, "!=", 5},
+      {"true == true", true, "==", true},
+      {"true != false", true, "!=", false},
+      {"false == false", false, "==", false}
     ]
 
     Enum.each(input, fn {input_string, left_value, operator, right_value} ->
       statement = parse_one_expression_statement(input_string)
       infix = statement.expression
 
-      test_infix_expression(infix, operator)
-      test_integer_literal(infix.left, left_value, Integer.to_string(left_value))
-      test_integer_literal(infix.right, right_value, Integer.to_string(right_value))
+      test_infix_expression(infix, operator, left_value, right_value)
     end)
   end
 
@@ -129,13 +135,30 @@ defmodule Monkey.ParserTest do
   test "parses input; boolean expression" do
     input = [{"true;", true}, {"false;", false}]
 
-    test_multiple_expressions(input, &test_boolean_expression/2)
+    test_multiple_expressions(input, &test_boolean_literal/2)
+  end
+
+  test "parses input; operator precedence" do
+    input = [
+      {"3 > 5 == false", "((3 > 5) == false)"},
+      {"3 > 5 == true", "((3 > 5) == true)"},
+      {"1 + (2 + 3) + 4", "((1 + (2 + 3)) + 4)"},
+      {"(5 + 5) * 2", "((5 + 5) * 2)"},
+      {"2 / (5 + 5)", "(2 / (5 + 5))"},
+      {"-(5 + 5)", "(-(5 + 5))"},
+      {"!(true == true)", "(!(true == true))"}
+    ]
+
+    test_multiple_expressions(input, &test_expression_to_string/2)
   end
 
   ####################
   # Test Helpers
   ####################
 
+  # what does assert return? no idea. are you even supposed to write typespecs for test helpers that run assertions?
+  @spec test_multiple_expressions([String.t()], (Parser.expression(), String.t() -> :ok)) ::
+          no_return()
   defp test_multiple_expressions(input, test_fn) do
     Enum.each(input, fn {input_string, value} ->
       statement = parse_one_expression_statement(input_string)
@@ -144,6 +167,14 @@ defmodule Monkey.ParserTest do
 
       test_fn.(expression, value)
     end)
+  end
+
+  defp test_literal_expression(expression, value) do
+    case value do
+      v when is_bitstring(v) -> test_identifier(expression, v)
+      v when is_integer(v) -> test_integer_literal(expression, v)
+      v when is_boolean(v) -> test_boolean_literal(expression, v)
+    end
   end
 
   defp test_let_statement(%LetStatement{} = let_statement, name) do
@@ -162,10 +193,10 @@ defmodule Monkey.ParserTest do
     assert Node.token_literal(expression) == value
   end
 
-  defp test_integer_literal(integer_literal, value, token_literal_value) do
-    assert %IntegerLiteral{} = integer_literal
-    assert integer_literal.value == value
-    assert Node.token_literal(integer_literal) == token_literal_value
+  defp test_integer_literal(expression, value) do
+    assert %IntegerLiteral{} = expression
+    assert expression.value == value
+    assert Node.token_literal(expression) == Integer.to_string(value)
   end
 
   defp test_prefix_expression(prefix, operator) do
@@ -173,12 +204,15 @@ defmodule Monkey.ParserTest do
     assert prefix.operator == operator
   end
 
-  defp test_infix_expression(infix, operator) do
+  defp test_infix_expression(infix, operator, left, right) do
     assert %InfixExpression{} = infix
     assert infix.operator == operator
+
+    test_literal_expression(infix.left, left)
+    test_literal_expression(infix.right, right)
   end
 
-  defp test_boolean_expression(expression, value) do
+  defp test_boolean_literal(expression, value) do
     assert %Boolean{} = expression
 
     assert expression.value == value
@@ -186,18 +220,18 @@ defmodule Monkey.ParserTest do
   end
 
   defp test_expression_to_string(expression, string_value) do
-    assert Node.to_string(expression) == string_value 
+    assert Node.to_string(expression) == string_value
   end
 
   ####################
   # Parsing Helpers
   ####################
 
-  def check_parser_errors(%Parser{errors: errors}) do
+  defp check_parser_errors(%Parser{errors: errors}) do
     Enum.each(errors, &IO.puts("Disaster! Error: #{&1}"))
   end
 
-  def parse_input(input) do
+  defp parse_input(input) do
     tokens = Lexer.tokenize(input)
     parser = Parser.new(tokens)
 
@@ -209,7 +243,7 @@ defmodule Monkey.ParserTest do
     {parser, program}
   end
 
-  def parse_one_expression_statement(input) do
+  defp parse_one_expression_statement(input) do
     {_, program} = parse_input(input)
     assert length(program.statements) == 1
 
